@@ -1,0 +1,8 @@
+Text file explaining the code. 
+This is the main code of the operation of the motors, so far it works as intended with a semi-automatic interface to control the motors to go along a pathway through the vals of the substrate 
+I have ideas to make it fully automatic, but that's for later. 
+The main issues with the idea are that: 
+1. Everything in terms of the measurement, to the pathway, to everything, is purely timing-based. I don't have the hardware needed to make exact distinctions on positioning. 
+2. As it's semiautomatic, there is a need for manual inputs such as the other file in the codebase to move the motors back to the center, and move the connecting wire to the other digital pins for the other vals
+3. Start the program each time
+
