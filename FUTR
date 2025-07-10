@@ -1,0 +1,5 @@
+other than the transistor element that i beleive should just work as imagined, the next next part is dealing with the excat measurements that have been plaguing this project for the lanogest time. 
+the main issue with this is according to the manual and the way that the actuators are set up, there is no way to apply traditional encoders to the system, for there werent designed eith precise accurate control in mind.
+Instead the only thing I can think of for getting precise movement and measurement data is through computer vision, odometry data, and machine learning. // TALK WITH JAIHENG
+possibily utilize the same basis that my current code has with defining a midpoint to base every movement out of for measure
+
