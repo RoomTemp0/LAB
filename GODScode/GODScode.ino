@@ -8,7 +8,7 @@ const int digitalPin10 = 10; // Selects Circle 1 (index 1: Top-Right)
 const int digitalPin11 = 11; // Selects Circle 0 (index 0: Top-Left)
 const int analogpin1 = A0;
 const int analogpin2 = A1;
-
+// const int SPECTRA_PIN = 7;
 
 // Motor 1 (X-axis)
 const int X_MOTOR_PIN_A = 2;
@@ -174,19 +174,13 @@ void performActionAtLocation() {
     Serial.print(currentPosX_mm); Serial.print(", ");
     Serial.print(currentPosY_mm); Serial.println(") mm -- (Spectrometer Trigger/Readout goes here)\n");
     
-    int analogValue1 = analogRead(analogpin1);
-    int analogValue2 = analogRead(analogpin2);
-    int analogValue = analogValue1 - analogValue2;
-    float voltage = (analogValue * 5.0) / 1023.0; // Use 1023.0 for exact max voltage mapping
-    Serial.print("  Read Voltage Difference:"); Serial.print(analogValue);
-    Serial.print(" (Voltage Difference: "); Serial.print(voltage, 3); Serial.println(" V)");
 
-    // Example:
-    // digitalWrite(SPECTRA_TRIGGER_PIN, HIGH); // Send trigger pulse
+    // for fully automatic, sending digital output to transistor that will act like a switch for the serial output to be read by the spectrometer 
+    // digitalWrite(SPECTRA_PIN, HIGH); // Send trigger pulse
     // delay(10); // Pulse duration
-    // digitalWrite(SPECTRA_TRIGGER_PIN, LOW);
+    // digitalWrite(SPECTRA_PIN, LOW);
     // delay(500); // Time for spectrometer to acquire data
-    delay(1000); // Simulate action time
+    delay(3000); // Simulate action time
 }
 
 /**
