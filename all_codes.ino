@@ -17,7 +17,7 @@ float speedx = 0.61215;
 float currentPosX_mm = 0.0;
 float currentPosY_mm = 0.0;
 
-// Center as globals (used by many places)
+// Center as globals
 float centerX = 0.0;
 float centerY = 0.0;
 
@@ -49,14 +49,21 @@ float clampf(float v, float lo, float hi) {
   return v;
 }
 
-void waitForSerialInput() {
-  while (Serial.available() == 0) {
-    delay(10);
+// Wait for a valid line of input from Serial and return it as a string
+String waitForSerialLine() {
+  String input = "";
+  while (input.length() == 0) {
+    if (Serial.available() > 0) {
+      input = Serial.readStringUntil('\n');
+      input.trim(); // remove whitespace and newlines
+    }
+    delay(10); // avoid CPU hog
   }
+  return input;
 }
 
 // ---------------- MOTOR CONTROL ----------------
-void forwardx(float d) {
+void forwardx(float d)  {
   if (d <= 0.0) return;
   digitalWrite(X_MOTOR_PIN_A, HIGH);
   digitalWrite(X_MOTOR_PIN_B, LOW);
@@ -66,7 +73,7 @@ void forwardx(float d) {
   currentPosX_mm += d;
 }
 
-void backwardsx(float d) {
+void backwardsx(float d){
   if (d <= 0.0) return;
   digitalWrite(X_MOTOR_PIN_A, LOW);
   digitalWrite(X_MOTOR_PIN_B, HIGH);
@@ -76,7 +83,7 @@ void backwardsx(float d) {
   currentPosX_mm -= d;
 }
 
-void forwardy(float d) {
+void forwardy(float d){
   if (d <= 0.0) return;
   digitalWrite(Y_MOTOR_PIN_A, HIGH);
   digitalWrite(Y_MOTOR_PIN_B, LOW);
@@ -86,7 +93,7 @@ void forwardy(float d) {
   currentPosY_mm += d;
 }
 
-void backwardsy(float d) {
+void backwardsy(float d){
   if (d <= 0.0) return;
   digitalWrite(Y_MOTOR_PIN_A, LOW);
   digitalWrite(Y_MOTOR_PIN_B, HIGH);
@@ -96,16 +103,15 @@ void backwardsy(float d) {
   currentPosY_mm -= d;
 }
 
-void moveTo(float targetX_mm, float targetY_mm) {
+// Move to a target coordinate (clamped)
+void moveTo(float targetX_mm, float targetY_mm){
   float clampedX = clampf(targetX_mm, SCAN_RECT_MIN_X, SCAN_RECT_MAX_X);
   float clampedY = clampf(targetY_mm, SCAN_RECT_MIN_Y, SCAN_RECT_MAX_Y);
   if (clampedX != targetX_mm || clampedY != targetY_mm) {
     Serial.println("Warning: target clamped to bounds.");
   }
-
   float dx = clampedX - currentPosX_mm;
   float dy = clampedY - currentPosY_mm;
-
   if (fabs(dx) > 0.00001) dx > 0 ? forwardx(dx) : backwardsx(fabs(dx));
   if (fabs(dy) > 0.00001) dy > 0 ? forwardy(dy) : backwardsy(fabs(dy));
 }
@@ -114,7 +120,6 @@ void performActionAtLocation() {
   digitalWrite(SPECTRA_TRIGGER_PIN, HIGH);
   delay(100);
   digitalWrite(SPECTRA_TRIGGER_PIN, LOW);
-
   Serial.print("Scan at X=");
   Serial.print(currentPosX_mm, 3);
   Serial.print(" Y=");
@@ -122,18 +127,17 @@ void performActionAtLocation() {
 }
 
 // ---------------- CIRCLE SCAN HELPERS ----------------
-bool isPointInCircle(float x,float y,int circleIndex) {
+bool isPointInCircle(float x,float y,int circleIndex){
   float dx = x - circleCenters[circleIndex].x;
   float dy = y - circleCenters[circleIndex].y;
   return (dx*dx + dy*dy) <= (CIRCLE_RADIUS_MM * CIRCLE_RADIUS_MM);
 }
 
-int countPointsForRows(float stepX,int numberRows,float r) {
+int countPointsForRows(float stepX,int numberRows,float r){
   int total = 0;
   if (numberRows <= 0) return 0;
   float stepY = (2.0 * r) / numberRows;
-
-  for(int row = 0; row <= numberRows; row++) {
+  for(int row = 0; row <= numberRows; row++){
     float y = -r + row * stepY;
     float span = 2.0 * sqrt(max(0.0, r*r - y*y));
     if(stepX <= 0.0) continue;
@@ -144,19 +148,16 @@ int countPointsForRows(float stepX,int numberRows,float r) {
   return total;
 }
 
-int estimateNumberRows(float stepX,int desiredPoints,float r) {
+int estimateNumberRows(float stepX,int desiredPoints,float r){
   if(stepX <= 0.0) return 1;
   if(desiredPoints <= 1) return 1;
-
   float approx = (2.0f * (float)desiredPoints * stepX) / (M_PI * r);
   int guess = max(1, (int)round(approx));
-
   int bestRows = guess;
   int bestDiff = INT_MAX;
   int searchRange = max(5, guess / 10);
   int start = max(1, guess - searchRange);
   int end = guess + searchRange;
-
   for(int cand = start; cand <= end; cand++){
     int pts = countPointsForRows(stepX, cand, r);
     int diff = abs(pts - desiredPoints);
@@ -169,7 +170,7 @@ int estimateNumberRows(float stepX,int desiredPoints,float r) {
   return bestRows;
 }
 
-void scanCircleZigzag(float stepX,int numberRows,int circleIdx) {
+void scanCircleZigzag(float stepX,int numberRows,int circleIdx){
   if (circleIdx < 0 || circleIdx >= NUM_CIRCLES) {
     Serial.println("Invalid circle index!");
     return;
@@ -177,16 +178,13 @@ void scanCircleZigzag(float stepX,int numberRows,int circleIdx) {
   float r = CIRCLE_RADIUS_MM;
   float stepY = (2.0 * r) / numberRows;
   CircleCenter c = circleCenters[circleIdx];
-
   for(int row = 0; row <= numberRows; row++){
     float y = -r + row * stepY;
     float halfSpan = sqrt(max(0.0, r*r - y*y));
     float xMin = -halfSpan;
     float xMax = +halfSpan;
-
     int numCols = (int)floor((xMax - xMin) / stepX) + 1;
     if(numCols <= 0) continue;
-
     for(int col = 0; col < numCols; col++){
       float x = (row % 2 == 0) ? (xMin + col * stepX) : (xMax - col * stepX);
       moveTo(c.x + x, c.y + y);
@@ -196,94 +194,82 @@ void scanCircleZigzag(float stepX,int numberRows,int circleIdx) {
 }
 
 // ---------------- RECTANGLE SCAN ----------------
-void scanRectangle(float stepSize,int totalScans) {
-  if(stepSize <= 0.0 || totalScans <= 0){
+void scanRectangle(float stepSize,int totalScans){
+  if (stepSize <= 0.0 || totalScans <= 0) {
     Serial.println("Invalid step size or total scans.");
     return;
   }
-
   int xSteps = (int)ceil(sqrt((float)totalScans));
   int ySteps = (int)ceil((float)totalScans / (float)xSteps);
-
   float totalX = (xSteps - 1) * stepSize;
   float totalY = (ySteps - 1) * stepSize;
-
-  if(totalX > SCAN_RECT_SIZE_X || totalY > SCAN_RECT_SIZE_Y){
+  if (totalX > SCAN_RECT_SIZE_X || totalY > SCAN_RECT_SIZE_Y) {
     Serial.println("Error: Scan exceeds rectangle limits!");
     return;
   }
-
   float startX = SCAN_RECT_MIN_X;
   float startY = SCAN_RECT_MAX_Y;
-
   moveTo(startX, startY);
   Serial.print("Starting rectangle scan: ");
   Serial.print(xSteps); Serial.print(" x "); Serial.println(ySteps);
-
-  for(int row = 0; row < ySteps; row++){
-    if(row % 2 == 0){
-      for(int col = 0; col < xSteps; col++){
+  for (int row = 0; row < ySteps; row++) {
+    if (row % 2 == 0) {
+      for (int col = 0; col < xSteps; col++) {
         performActionAtLocation();
-        if(col < xSteps - 1) forwardx(stepSize);
+        if (col < xSteps - 1) forwardx(stepSize);
       }
     } else {
-      for(int col = 0; col < xSteps; col++){
+      for (int col = 0; col < xSteps; col++) {
         performActionAtLocation();
-        if(col < xSteps - 1) backwardsx(stepSize);
+        if (col < xSteps - 1) backwardsx(stepSize);
       }
     }
-    if(row < ySteps - 1) backwardsy(stepSize);
+    if (row < ySteps - 1) backwardsy(stepSize);
   }
-
   Serial.println("Rectangle scan complete. Returning to center...");
   moveTo(centerX, centerY);
   Serial.println("Returned to center.");
 }
 
-void rectangleNXN(int xScans,int yScans){
-  if(xScans <= 0 || yScans <= 0){
+// ---------------- NXN SCAN ----------------
+void rectangleNXN(int xScans, int yScans) {
+  if (xScans <= 0 || yScans <= 0) {
     Serial.println("Invalid x/y scans.");
     return;
   }
-
   float step = 0.2f;
   float totalX = (xScans - 1) * step;
   float totalY = (yScans - 1) * step;
-
-  if(totalX > SCAN_RECT_SIZE_X || totalY > SCAN_RECT_SIZE_Y){
+  if (totalX > SCAN_RECT_SIZE_X || totalY > SCAN_RECT_SIZE_Y) {
     Serial.println("Error: Requested scan exceeds stage rectangle size!");
     return;
   }
-
   float startX = SCAN_RECT_MIN_X;
   float startY = SCAN_RECT_MAX_Y;
-
   moveTo(startX, startY);
   Serial.println("Moved to top-left. Starting NXN scan...");
-
-  for(int row = 0; row < yScans; row++){
-    if(row % 2 == 0){
-      for(int col = 0; col < xScans; col++){
+  for (int row = 0; row < yScans; row++) {
+    if (row % 2 == 0) {
+      for (int col = 0; col < xScans; col++) {
         performActionAtLocation();
-        if(col < xScans - 1) forwardx(step);
+        if (col < xScans - 1) forwardx(step);
       }
     } else {
-      for(int col = 0; col < xScans; col++){
+      for (int col = 0; col < xScans; col++) {
         performActionAtLocation();
-        if(col < xScans - 1) backwardsx(step);
+        if (col < xScans - 1) backwardsx(step);
       }
     }
-    if(row < yScans - 1) backwardsy(step);
+    if (row < yScans - 1) backwardsy(step);
   }
-
   Serial.println("NXN scan complete. Returning to center...");
   moveTo(centerX, centerY);
-  Serial.println("Returned to center.");
+  Serial.println("Returned to center. NXN scan finished.");
 }
 
 // ---------------- MANUAL CONTROL ----------------
 void manualWASD(){
-  Serial.println("Manual WASD mode: Use w/a/s/d to move stage, t to scan, q to exit.");
+  Serial.println("Manual WASD mode: Use w/a/s/d to move stage and scan.");
   while(true){
     if(Serial.available() > 0){
       char key = Serial.read();
@@ -309,75 +295,4 @@ void setup() {
   pinMode(X_MOTOR_PIN_B, OUTPUT);
   pinMode(Y_MOTOR_PIN_A, OUTPUT);
   pinMode(Y_MOTOR_PIN_B, OUTPUT);
-
-  digitalWrite(X_MOTOR_PIN_A, LOW);
-  digitalWrite(X_MOTOR_PIN_B, LOW);
-  digitalWrite(Y_MOTOR_PIN_A, LOW);
-  digitalWrite(Y_MOTOR_PIN_B, LOW);
-
-  Serial.println("Stage initialized.");
-  Serial.println("Choose mode (1-5):");
-  Serial.println("1 = Manual WASD");
-  Serial.println("2 = Rectangle NXN scan");
-  Serial.println("3 = Rectangle scan (step & total scans)");
-  Serial.println("4 = Circle scan (user step/points)");
-  Serial.println("5 = Circle scan automated");
-}
-
-// ---------------- LOOP ----------------
-void loop(){
-  if(Serial.available() > 0){
-    int mode = Serial.parseInt();
-    switch(mode){
-      case 1: manualWASD(); break;
-
-      case 2: {
-        Serial.println("Enter X scans: "); waitForSerialInput();
-        int x = Serial.readStringUntil('\n').toInt();
-        Serial.println("Enter Y scans: "); waitForSerialInput();
-        int y = Serial.readStringUntil('\n').toInt();
-        rectangleNXN(x, y);
-        break;
-      }
-
-      case 3: {
-        Serial.println("Enter step size (mm): "); waitForSerialInput();
-        float step = Serial.readStringUntil('\n').toFloat();
-        Serial.println("Enter total scans: "); waitForSerialInput();
-        int total = Serial.readStringUntil('\n').toInt();
-        scanRectangle(step, total);
-        break;
-      }
-
-      case 4: {
-        Serial.println("Enter step size (mm): "); waitForSerialInput();
-        float step = Serial.readStringUntil('\n').toFloat();
-        Serial.println("Enter total points: "); waitForSerialInput();
-        int points = Serial.readStringUntil('\n').toInt();
-        Serial.println("Enter circle index (0-3): "); waitForSerialInput();
-        int circleIdx = Serial.readStringUntil('\n').toInt();
-        int rows = estimateNumberRows(step, points, CIRCLE_RADIUS_MM);
-        scanCircleZigzag(step, rows, circleIdx);
-        moveTo(centerX, centerY);
-        break;
-      }
-
-      case 5: {
-        Serial.println("Enter circle index (0-3): "); waitForSerialInput();
-        int circleIdx = Serial.readStringUntil('\n').toInt();
-        float step = 0.2; int points = 30;
-        int rows = estimateNumberRows(step, points, CIRCLE_RADIUS_MM);
-        scanCircleZigzag(step, rows, circleIdx);
-        moveTo(centerX, centerY);
-        break;
-      }
-
-      default:
-        Serial.println("Invalid mode. Enter 1-5.");
-        break;
-    }
-
-    Serial.println("Choose mode (1-5):");
-  }
-  delay(10);
-}
+  digitalWrite(X_MOTOR_PIN_A, L_
