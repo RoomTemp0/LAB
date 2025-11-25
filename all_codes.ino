@@ -43,17 +43,67 @@ CircleCenter circleCenters[] = {
 const int NUM_CIRCLES = sizeof(circleCenters) / sizeof(circleCenters[0]);
 
 // ---------------- UTIL ----------------
+
+// NOTE: This utility function is no longer needed as the new input functions handle waiting.
+// void waitForSerialInput() {
+//   // small sleep to avoid 100% CPU busy loop
+//   while (Serial.available() == 0) {
+//     delay(10);
+//   }
+// }
+
 float clampf(float v, float lo, float hi) {
   if (v < lo) return lo;
   if (v > hi) return hi;
   return v;
 }
 
-void waitForSerialInput() {
-  // small sleep to avoid 100% CPU busy loop
-  while (Serial.available() == 0) {
-    delay(10);
-  }
+// ---------------- ROBUST INPUT FUNCTIONS ----------------
+
+/**
+ * @brief Waits for and reads a valid integer from the Serial Monitor.
+ * Clears the buffer before reading.
+ * @param prompt The string to print to the user.
+ * @return The integer value entered by the user, or 0 if no input is provided.
+ */
+int readSerialInt(const char* prompt) {
+    Serial.println(prompt);
+    // Clear the buffer to remove any old, pending characters 
+    while (Serial.available()) {
+        Serial.read();
+    }
+    String input = Serial.readStringUntil('\n');
+    
+    if (input.length() > 0) {
+        return input.toInt();
+    } else {
+        // Return 0 as the safe default when input times out or is just 'Enter'
+        Serial.println("(No input detected. Defaulting to 0.)");
+        return 0; 
+    }
+}
+
+/**
+ * @brief Waits for and reads a valid float from the Serial Monitor.
+ * Clears the buffer before reading.
+ * @param prompt The string to print to the user.
+ * @return The float value entered by the user, or 0.0f if no input is provided.
+ */
+float readSerialFloat(const char* prompt) {
+    Serial.println(prompt);
+    // Clear the buffer to remove any old, pending characters 
+    while (Serial.available()) {
+        Serial.read();
+    }
+    String input = Serial.readStringUntil('\n');
+    
+    if (input.length() > 0) {
+        return input.toFloat();
+    } else {
+        // Return 0.0f as the safe default when input times out or is just 'Enter'
+        Serial.println("(No input detected. Defaulting to 0.0.)");
+        return 0.0f; 
+    }
 }
 
 // ---------------- MOTOR CONTROL ----------------
@@ -258,7 +308,7 @@ void scanRectangle(float stepSize,int totalScans){
 // ---------------- NEW rectangleNXN (Starts top-left, returns center) ----------------
 void rectangleNXN(int xScans, int yScans) {
   if (xScans <= 0 || yScans <= 0) {
-    Serial.println("Invalid x/y scans.");
+    Serial.println("Invalid x/y scans. Must be > 0.");
     return;
   }
 
@@ -317,8 +367,6 @@ void manualWASD(){
         case 'd': case 'D': forwardx(0.5); break;
         case 't': case 'T': performActionAtLocation(); break;
         case 'q': case 'Q':
-          Serial.println("Exiting manual mode and returning to center...");
-          moveTo(centerX, centerY);
           return;
         default:
           Serial.println("Use w/a/s/d to move, t to scan, q to exit.");
@@ -356,7 +404,8 @@ void setup() {
 // ---------------- LOOP ----------------
 void loop(){
   if(Serial.available() > 0){
-    int mode = Serial.parseInt();
+    // Read the mode reliably using the new function
+    int mode = readSerialInt("Select mode (1-5):");
 
     switch(mode){
 
@@ -365,43 +414,29 @@ void loop(){
         break;
 
       case 2:{
-        Serial.println("Enter X scans: ");
-        waitForSerialInput();
-        int x = Serial.parseInt();
-
-        Serial.println("Enter Y scans: ");
-        waitForSerialInput();
-        int y = Serial.parseInt();
+        // FIXED: Using readSerialInt for robust input and correct scope
+        int x = readSerialInt("Enter X scans:");
+        int y = readSerialInt("Enter Y scans:");
 
         rectangleNXN(x, y);
         break;
       }
 
       case 3:{
-        Serial.println("Enter step size (mm): ");
-        waitForSerialInput();
-        float step = Serial.parseFloat();
-
-        Serial.println("Enter total scans: ");
-        waitForSerialInput();
-        int total = Serial.parseInt();
+        // FIXED: Using readSerialFloat and readSerialInt
+        float step = readSerialFloat("Enter step size (mm): ");
+        int total = readSerialInt("Enter total scans: ");
 
         scanRectangle(step, total);
         break;
       }
 
       case 4:{
-        Serial.println("Enter step size (mm): ");
-        waitForSerialInput();
-        float step = Serial.parseFloat();
-
-        Serial.println("Enter total points: ");
-        waitForSerialInput();
-        int points = Serial.parseInt();
-
-        Serial.println("Enter circle index (0-3): ");
-        waitForSerialInput();
-        int circleIdx = Serial.parseInt();
+        // FIXED: Using readSerialFloat and readSerialInt
+        float step = readSerialFloat("Enter step size (mm): ");
+        int points = readSerialInt("Enter total points: ");
+        int circleIdx = readSerialInt("Enter circle index (0-3): ");
+        
         if (circleIdx < 0 || circleIdx >= NUM_CIRCLES) {
           Serial.println("Invalid circle index.");
           break;
@@ -418,9 +453,9 @@ void loop(){
       }
 
       case 5:{
-        Serial.println("Enter circle index (0-3): ");
-        waitForSerialInput();
-        int circleIdx = Serial.parseInt();
+        // FIXED: Using readSerialInt
+        int circleIdx = readSerialInt("Enter circle index (0-3): ");
+        
         if (circleIdx < 0 || circleIdx >= NUM_CIRCLES) {
           Serial.println("Invalid circle index.");
           break;
