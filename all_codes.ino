@@ -295,4 +295,81 @@ void setup() {
   pinMode(X_MOTOR_PIN_B, OUTPUT);
   pinMode(Y_MOTOR_PIN_A, OUTPUT);
   pinMode(Y_MOTOR_PIN_B, OUTPUT);
-  digitalWrite(X_MOTOR_PIN_A, L_
+  digitalWrite(X_MOTOR_PIN_A, LOW);
+  digitalWrite(X_MOTOR_PIN_B, LOW);
+  digitalWrite(Y_MOTOR_PIN_A, LOW);
+  digitalWrite(Y_MOTOR_PIN_B, LOW);
+
+  Serial.println("Stage initialized.");
+  Serial.println("Choose mode:");
+  Serial.println("1 = Manual WASD");
+  Serial.println("2 = Rectangle scan (Automatic NXN grid)");
+  Serial.println("3 = Rectangle scan (Manual step & total scans)");
+  Serial.println("4 = Circle scan (user step/points)");
+  Serial.println("5 = Circle scan automated");
+}
+
+// ---------------- LOOP ----------------
+void loop(){
+  if(Serial.available() > 0){
+    int mode = Serial.parseInt();
+    switch(mode){
+      case 1: manualWASD(); break;
+      case 2:{
+        Serial.println("Enter X scans: ");
+        int x = waitForSerialLine().toInt();
+        Serial.println("Enter Y scans: ");
+        int y = waitForSerialLine().toInt();
+        rectangleNXN(x, y);
+        break;
+      }
+      case 3:{
+        Serial.println("Enter step size (mm): ");
+        float step = waitForSerialLine().toFloat();
+        Serial.println("Enter total scans: ");
+        int total = waitForSerialLine().toInt();
+        scanRectangle(step, total);
+        break;
+      }
+      case 4:{
+        Serial.println("Enter step size (mm): ");
+        float step = waitForSerialLine().toFloat();
+        Serial.println("Enter total points: ");
+        int points = waitForSerialLine().toInt();
+        Serial.println("Enter circle index (0-3): ");
+        int circleIdx = waitForSerialLine().toInt();
+        if(circleIdx < 0 || circleIdx >= NUM_CIRCLES){
+          Serial.println("Invalid circle index.");
+          break;
+        }
+        int rows = estimateNumberRows(step, points, CIRCLE_RADIUS_MM);
+        scanCircleZigzag(step, rows, circleIdx);
+        Serial.println("Circle scan complete! Returning to center...");
+        moveTo(centerX, centerY);
+        Serial.println("Returned to center.");
+        break;
+      }
+      case 5:{
+        Serial.println("Enter circle index (0-3): ");
+        int circleIdx = waitForSerialLine().toInt();
+        if(circleIdx < 0 || circleIdx >= NUM_CIRCLES){
+          Serial.println("Invalid circle index.");
+          break;
+        }
+        float step = 0.2;
+        int points = 30;
+        int rows = estimateNumberRows(step, points, CIRCLE_RADIUS_MM);
+        scanCircleZigzag(step, rows, circleIdx);
+        Serial.println("Automated circle scan complete! Returning to center...");
+        moveTo(centerX, centerY);
+        Serial.println("Returned to center.");
+        break;
+      }
+      default:
+        Serial.println("Invalid mode. Enter 1-5.");
+        break;
+    }
+    Serial.println("Choose mode (1-5):");
+  }
+  delay(10);
+}
