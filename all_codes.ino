@@ -216,11 +216,13 @@ void scanRectangle(float stepSize,int totalScans){
     if (row % 2 == 0) {
       for (int col = 0; col < xSteps; col++) {
         performActionAtLocation();
+        delay(8000);
         if (col < xSteps - 1) forwardx(stepSize);
       }
     } else {
       for (int col = 0; col < xSteps; col++) {
         performActionAtLocation();
+        delay(8000);
         if (col < xSteps - 1) backwardsx(stepSize);
       }
     }
@@ -252,11 +254,13 @@ void rectangleNXN(int xScans, int yScans) {
     if (row % 2 == 0) {
       for (int col = 0; col < xScans; col++) {
         performActionAtLocation();
+        delay(10000);
         if (col < xScans - 1) forwardx(step);
       }
     } else {
       for (int col = 0; col < xScans; col++) {
         performActionAtLocation();
+        delay(10000);
         if (col < xScans - 1) backwardsx(step);
       }
     }
