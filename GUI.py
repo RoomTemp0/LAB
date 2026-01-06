@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import serial
 import serial.tools.list_ports
+import datetime
 
 # ----------------- MOCK SERIAL -----------------
 class MockSerial:
@@ -46,7 +47,7 @@ def connect_arduino():
         messagebox.showerror("Error", f"Could not connect: {e}")
         exit()
 
-ser =  MockSerial() #connect_arduino()  # for testing without arduino
+ser = connect_arduino() #MockSerial()  # for testing without arduino
 
 arduino_busy = False
 
@@ -109,6 +110,15 @@ def send_manual_scan():
 
 scan_button = ttk.Button(manual_frame, text="SCAN", command=send_manual_scan)
 scan_button.grid(row=2,column=0,columnspan=2,pady=5)
+
+def set_center():
+    if ser:
+        ser.write(b"MANUAL,CENTER\n")
+        status_label.config(text="Center set at current position")
+
+center_button = ttk.Button(manual_frame, text="Set Center", command=set_center)
+center_button.grid(row=3, column=0, columnspan=2, pady=5)
+
 
 # ----------------- RECT NXN -----------------
 nxn_x = tk.IntVar(value=5)
@@ -198,6 +208,8 @@ root.bind("<KeyPress>", on_key_press)
 root.bind("<KeyRelease>", on_key_release)
 root.after(SEND_INTERVAL, manual_send_loop)
 
+
+
 # ----------------- Arduino Log -----------------
 log_frame = ttk.LabelFrame(root, text="Arduino Log")
 log_frame.grid(row=4, column=0, columnspan=2, padx=10, pady=5, sticky="we")
@@ -227,9 +239,9 @@ def send_command():
     msg = ""
     try:
         if mode=="RECT_NXN":
-            msg = f"RECT,{nxn_x.get()},{nxn_y.get()},0.2\n"
+            msg = f"RECT_NXN,{nxn_x.get()},{nxn_y.get()},0.2\n"
         elif mode=="RECT_MANUAL":
-            msg = f"RECT,{rect_total.get()},{rect_total.get()},{rect_step.get()}\n"
+            msg = f"RECT_MANUAL,{rect_total.get()},{rect_step.get()}\n"
         elif mode=="CIRCLE_USER":
             msg = f"CIRCLE,{circle_idx.get()},{circle_step.get()},{circle_points.get()}\n"
         elif mode=="CIRCLE_AUTO":
